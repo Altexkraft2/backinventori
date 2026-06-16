@@ -1,9 +1,9 @@
-// backend-inventario/src/config/email.js
+// backend-inventario/src/config/email.js - Gmail con contraseña de aplicación
 const nodemailer = require('nodemailer');
 
-// Configuración para Ethereal Email (pruebas)
+// Configuración para Gmail
 const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
+    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.EMAIL_PORT) || 587,
     secure: false, // false para puerto 587
     auth: {
@@ -18,16 +18,16 @@ const transporter = nodemailer.createTransport({
 // Verificar conexión
 transporter.verify((error, success) => {
     if (error) {
-        console.error('❌ Error de conexión con Ethereal:', error.message);
+        console.error('❌ Error de conexión con Gmail:', error.message);
+        console.log('   Verifica EMAIL_USER y EMAIL_PASS en variables de entorno');
     } else {
-        console.log('✅ Servidor de email configurado con Ethereal');
+        console.log('✅ Servidor de email configurado con Gmail');
         console.log(`   📧 Enviando emails desde: ${process.env.EMAIL_USER}`);
-        console.log('   📬 Ver emails en: https://ethereal.email/login');
     }
 });
 
 async function enviarEmailVerificacion(email, nombre, token) {
-    const urlVerificacion = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
+    const urlVerificacion = `${process.env.FRONTEND_URL}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
     
     const mailOptions = {
         from: `"Sistema de Inventario" <${process.env.EMAIL_USER}>`,
@@ -65,7 +65,6 @@ async function enviarEmailVerificacion(email, nombre, token) {
                         <div style="text-align: center;">
                             <a href="${urlVerificacion}" class="button">Verificar mi cuenta</a>
                         </div>
-                        <p>O copia este enlace: ${urlVerificacion}</p>
                         <p>Este enlace expirará en 24 horas.</p>
                     </div>
                 </div>
@@ -77,7 +76,6 @@ async function enviarEmailVerificacion(email, nombre, token) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Email de verificación enviado a: ${email}`);
-        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
@@ -134,9 +132,8 @@ async function enviarEmailRecuperacion(email, nombre, token) {
     };
     
     try {
-        const info = await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
         console.log(`✅ Email de recuperación enviado a: ${email}`);
-        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
@@ -178,9 +175,8 @@ async function enviarEmailBienvenida(email, nombre) {
     };
     
     try {
-        const info = await transporter.sendMail(mailOptions);
+        await transporter.sendMail(mailOptions);
         console.log(`✅ Email de bienvenida enviado a: ${email}`);
-        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
