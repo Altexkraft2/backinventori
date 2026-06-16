@@ -1,37 +1,31 @@
 // backend-inventario/src/config/email.js
 const nodemailer = require('nodemailer');
 
-// Configuración para Outlook/Hotmail
+// Configuración para Ethereal Email (pruebas)
 const transporter = nodemailer.createTransport({
-    host: 'smtp-mail.outlook.com',
-    port: 587,
-    secure: false, // IMPORTANTE: false para puerto 587 (STARTTLS)
+    host: process.env.EMAIL_HOST || 'smtp.ethereal.email',
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: false, // false para puerto 587
     auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
     },
     tls: {
-        ciphers: 'SSLv3',
         rejectUnauthorized: false
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 20000
+    }
 });
 
 // Verificar conexión
 transporter.verify((error, success) => {
     if (error) {
-        console.error('❌ Error de conexión con Outlook:', error.message);
-        console.log('   Verifica EMAIL_USER y EMAIL_PASS en variables de entorno');
-        console.log('   Asegúrate de que IMAP esté activado en Outlook');
+        console.error('❌ Error de conexión con Ethereal:', error.message);
     } else {
-        console.log('✅ Servidor de email configurado correctamente');
+        console.log('✅ Servidor de email configurado con Ethereal');
         console.log(`   📧 Enviando emails desde: ${process.env.EMAIL_USER}`);
+        console.log('   📬 Ver emails en: https://ethereal.email/login');
     }
 });
 
-// Función para enviar email de verificación
 async function enviarEmailVerificacion(email, nombre, token) {
     const urlVerificacion = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
     
@@ -83,6 +77,7 @@ async function enviarEmailVerificacion(email, nombre, token) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Email de verificación enviado a: ${email}`);
+        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
@@ -91,7 +86,7 @@ async function enviarEmailVerificacion(email, nombre, token) {
 }
 
 async function enviarEmailRecuperacion(email, nombre, token) {
-    const urlReset = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
+    const urlReset = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
     
     const mailOptions = {
         from: `"Sistema de Inventario" <${process.env.EMAIL_USER}>`,
@@ -139,8 +134,9 @@ async function enviarEmailRecuperacion(email, nombre, token) {
     };
     
     try {
-        await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Email de recuperación enviado a: ${email}`);
+        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
@@ -182,8 +178,9 @@ async function enviarEmailBienvenida(email, nombre) {
     };
     
     try {
-        await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
         console.log(`✅ Email de bienvenida enviado a: ${email}`);
+        console.log(`   📬 Ver en: ${nodemailer.getTestMessageUrl(info)}`);
         return true;
     } catch (error) {
         console.error(`❌ Error enviando email a ${email}:`, error.message);
