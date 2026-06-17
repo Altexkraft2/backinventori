@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { pool } = require('../config/database');
 const { generarToken } = require('../middleware/auth');
-const { enviarEmailVerificacion, enviarEmailRecuperacion, enviarEmailBienvenida } = require('../config/email');
+const { enviarEmailRecuperacion } = require('../config/email');
 
 async function registrarActividad(usuario_id, accion, detalles, req) {
     try {
@@ -32,10 +32,7 @@ async function login(req, res) {
         }
         
         const [users] = await pool.query(
-            `SELECT u.*, s.nombre as sede_nombre 
-             FROM usuarios u 
-             LEFT JOIN sedes s ON u.sede_id = s.id 
-             WHERE u.email = ?`,
+            `SELECT * FROM usuarios WHERE email = ?`,
             [email]
         );
         
@@ -49,17 +46,13 @@ async function login(req, res) {
             return res.status(401).json({ success: false, error: 'Cuenta desactivada' });
         }
         
-        if (!usuario.email_verificado) {
-            return res.status(401).json({ success: false, error: 'Verifica tu email antes de iniciar sesión' });
-        }
-        
         const passwordValida = await bcrypt.compare(password, usuario.password);
         if (!passwordValida) {
             return res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
         }
         
         await pool.query('UPDATE usuarios SET ultimo_login = NOW() WHERE id = ?', [usuario.id]);
-        await registrarActividad(usuario.id, 'LOGIN', 'Inicio de sesión exitoso', req);
+        await registrarActividad(usuario.id, 'LOGIN', 'Inicio de sesion exitoso', req);
         
         const token = generarToken(usuario);
         
@@ -71,84 +64,13 @@ async function login(req, res) {
                     id: usuario.id,
                     nombre: usuario.nombre,
                     email: usuario.email,
-                    rol: usuario.rol,
-                    sede_id: usuario.sede_id,
-                    sede_nombre: usuario.sede_nombre
+                    rol: usuario.rol
                 }
             }
         });
         
     } catch (error) {
         console.error('Error en login:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-}
-
-async function registrar(req, res) {
-    try {
-        const { nombre, email, password, sede_id } = req.body;
-        
-        if (!nombre || !email || !password) {
-            return res.status(400).json({ success: false, error: 'Nombre, email y contraseña son obligatorios' });
-        }
-        
-        const [existentes] = await pool.query('SELECT id FROM usuarios WHERE email = ?', [email]);
-        if (existentes.length > 0) {
-            return res.status(409).json({ success: false, error: 'Ya existe un usuario con este email' });
-        }
-        
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const tokenVerificacion = crypto.randomBytes(32).toString('hex');
-        
-        await pool.query(
-            `INSERT INTO usuarios (nombre, email, password, sede_id, token_verificacion, rol) 
-             VALUES (?, ?, ?, ?, ?, 'tecnico')`,
-            [nombre, email, hashedPassword, sede_id || null, tokenVerificacion]
-        );
-        
-        await enviarEmailVerificacion(email, nombre, tokenVerificacion);
-        
-        res.status(201).json({
-            success: true,
-            message: 'Usuario registrado. Revisa tu email para verificar tu cuenta.'
-        });
-        
-    } catch (error) {
-        console.error('Error en registro:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-}
-
-async function verificarEmail(req, res) {
-    try {
-        const { token } = req.query;
-        
-        if (!token) {
-            return res.status(400).json({ success: false, error: 'Token no proporcionado' });
-        }
-        
-        const [users] = await pool.query(
-            'SELECT id, nombre, email FROM usuarios WHERE token_verificacion = ?',
-            [token]
-        );
-        
-        if (users.length === 0) {
-            return res.status(404).json({ success: false, error: 'Token inválido o expirado' });
-        }
-        
-        const usuario = users[0];
-        
-        await pool.query(
-            'UPDATE usuarios SET email_verificado = 1, token_verificacion = NULL WHERE id = ?',
-            [usuario.id]
-        );
-        
-        await enviarEmailBienvenida(usuario.email, usuario.nombre);
-        
-        res.json({ success: true, message: 'Email verificado correctamente' });
-        
-    } catch (error) {
-        console.error('Error verificando email:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 }
@@ -164,7 +86,7 @@ async function solicitarRecuperacion(req, res) {
         const [users] = await pool.query('SELECT id, nombre FROM usuarios WHERE email = ?', [email]);
         
         if (users.length === 0) {
-            return res.json({ success: true, message: 'Si el email existe, recibirás instrucciones' });
+            return res.json({ success: true, message: 'Si el email existe, recibiras instrucciones' });
         }
         
         const usuario = users[0];
@@ -179,7 +101,7 @@ async function solicitarRecuperacion(req, res) {
         
         await enviarEmailRecuperacion(email, usuario.nombre, tokenRecuperacion);
         
-        res.json({ success: true, message: 'Si el email existe, recibirás instrucciones' });
+        res.json({ success: true, message: 'Si el email existe, recibiras instrucciones' });
         
     } catch (error) {
         console.error('Error:', error);
@@ -206,7 +128,7 @@ async function resetearPassword(req, res) {
         );
         
         if (users.length === 0) {
-            return res.status(400).json({ success: false, error: 'Token inválido o expirado' });
+            return res.status(400).json({ success: false, error: 'Token invalido o expirado' });
         }
         
         const hashedPassword = await bcrypt.hash(nueva_password, 10);
@@ -262,72 +184,20 @@ async function cambiarPassword(req, res) {
 async function logout(req, res) {
     try {
         if (req.usuario) {
-            await registrarActividad(req.usuario.id, 'LOGOUT', 'Cierre de sesión', req);
+            await registrarActividad(req.usuario.id, 'LOGOUT', 'Cierre de sesion', req);
         }
-        res.json({ success: true, message: 'Sesión cerrada correctamente' });
+        res.json({ success: true, message: 'Sesion cerrada correctamente' });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: error.message });
     }
 }
 
-async function obtenerSedes(req, res) {
-    try {
-        const [sedes] = await pool.query(`
-            SELECT id, nombre, direccion, telefono 
-            FROM sedes 
-            WHERE estado = '1' 
-            ORDER BY nombre
-        `);
-        
-        res.json({
-            success: true,
-            data: sedes
-        });
-    } catch (error) {
-        console.error('Error al obtener sedes:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-}
-
-async function crearSede(req, res) {
-    try {
-        const { nombre, direccion, telefono } = req.body;
-        
-        if (!nombre) {
-            return res.status(400).json({ success: false, error: 'El nombre de la sede es obligatorio' });
-        }
-        
-        const [existe] = await pool.query('SELECT id FROM sedes WHERE nombre = ?', [nombre]);
-        if (existe.length > 0) {
-            return res.status(409).json({ success: false, error: 'Ya existe una sede con ese nombre' });
-        }
-        
-        const [result] = await pool.query(
-            `INSERT INTO sedes (nombre, direccion, telefono) VALUES (?, ?, ?)`,
-            [nombre, direccion || '', telefono || '']
-        );
-        
-        res.status(201).json({
-            success: true,
-            message: 'Sede creada correctamente',
-            data: { id: result.insertId, nombre }
-        });
-    } catch (error) {
-        console.error('Error al crear sede:', error);
-        res.status(500).json({ success: false, error: error.message });
-    }
-}
-
 module.exports = {
     login,
-    registrar,
-    verificarEmail,
     solicitarRecuperacion,
     resetearPassword,
     obtenerPerfil,
     cambiarPassword,
-    logout,
-    obtenerSedes,
-    crearSede
+    logout
 };
