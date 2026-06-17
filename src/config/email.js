@@ -1,21 +1,54 @@
-// backend-inventario/src/config/email.js - Brevo (versión corregida)
-const brevo = require('@getbrevo/brevo');
+// backend-inventario/src/config/email.js - Usando Fetch Nativo (Node 22)
 
-// Inicializar Brevo correctamente
-const apiInstance = new brevo.TransactionalEmailsApi();
-apiInstance.setApiKey(brevo.ApiKeyKeys.API_KEY, process.env.BREVO_API_KEY);
-
+const API_KEY = process.env.BREVO_API_KEY;
 const SENDER_EMAIL = process.env.EMAIL_FROM || 'tu_correo@gmail.com';
 const SENDER_NAME = 'Sistema de Inventario';
+const BREVO_URL = 'https://api.brevo.com/v3/smtp/email';
+
+/**
+ * Función base para enviar correos a la API de Brevo mediante HTTP
+ */
+async function sendBrevoEmail(subject, toEmail, toName, htmlContent) {
+    try {
+        const response = await fetch(BREVO_URL, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'api-key': API_KEY
+            },
+            body: JSON.stringify({
+                sender: { email: SENDER_EMAIL, name: SENDER_NAME },
+                to: [{ email: toEmail, name: toName }],
+                subject: subject,
+                htmlContent: htmlContent
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('❌ Error desde la API de Brevo:', JSON.stringify(data, null, 2));
+            return false;
+        }
+
+        console.log(`✅ Email enviado a: ${toEmail}`);
+        console.log(`   ID: ${data.messageId}`);
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error de conexión enviando email:', error.message);
+        return false;
+    }
+}
+
+// --- Funciones específicas ---
 
 async function enviarEmailVerificacion(email, nombre, token) {
     const urlVerificacion = `${process.env.FRONTEND_URL}/verificar-email?token=${token}&email=${encodeURIComponent(email)}`;
+    const subject = 'Verifica tu cuenta - Sistema de Inventario';
     
-    const sendSmtpEmail = new brevo.SendSmtpEmail();
-    sendSmtpEmail.subject = 'Verifica tu cuenta - Sistema de Inventario';
-    sendSmtpEmail.to = [{ email, name: nombre }];
-    sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
-    sendSmtpEmail.htmlContent = `
+    const htmlContent = `
         <!DOCTYPE html>
         <html>
         <head>
@@ -47,7 +80,7 @@ async function enviarEmailVerificacion(email, nombre, token) {
                     <div style="text-align: center;">
                         <a href="${urlVerificacion}" class="button">Verificar mi cuenta</a>
                     </div>
-                    <p>O copia este enlace: ${urlVerificacion}</p>
+                    <p>O copia este enlace: <br> ${urlVerificacion}</p>
                     <p>Este enlace expirará en 24 horas.</p>
                 </div>
             </div>
@@ -55,59 +88,33 @@ async function enviarEmailVerificacion(email, nombre, token) {
         </html>
     `;
 
-    try {
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`✅ Email de verificación enviado a: ${email}`);
-        return true;
-    } catch (error) {
-        console.error('❌ Error enviando email de verificación:', error.message);
-        return false;
-    }
+    return await sendBrevoEmail(subject, email, nombre, htmlContent);
 }
 
 async function enviarEmailRecuperacion(email, nombre, token) {
     const urlReset = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const subject = 'Recuperación de Contraseña - Sistema de Inventario';
     
-    const sendSmtpEmail = new brevo.SendSmtpEmail();
-    sendSmtpEmail.subject = 'Recuperación de Contraseña - Sistema de Inventario';
-    sendSmtpEmail.to = [{ email, name: nombre }];
-    sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
-    sendSmtpEmail.htmlContent = `
+    const htmlContent = `
         <h2>Hola ${nombre}</h2>
         <p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p>
         <a href="${urlReset}">Restablecer Contraseña</a>
         <p>Este enlace expirará en 1 hora.</p>
     `;
 
-    try {
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`✅ Email de recuperación enviado a: ${email}`);
-        return true;
-    } catch (error) {
-        console.error('❌ Error enviando email de recuperación:', error.message);
-        return false;
-    }
+    return await sendBrevoEmail(subject, email, nombre, htmlContent);
 }
 
 async function enviarEmailBienvenida(email, nombre) {
-    const sendSmtpEmail = new brevo.SendSmtpEmail();
-    sendSmtpEmail.subject = '¡Bienvenido al Sistema de Inventario!';
-    sendSmtpEmail.to = [{ email, name: nombre }];
-    sendSmtpEmail.sender = { email: SENDER_EMAIL, name: SENDER_NAME };
-    sendSmtpEmail.htmlContent = `
+    const subject = '¡Bienvenido al Sistema de Inventario!';
+    
+    const htmlContent = `
         <h2>¡Bienvenido ${nombre}!</h2>
         <p>Tu cuenta ha sido verificada exitosamente.</p>
         <p>Ahora puedes iniciar sesión en el Sistema de Inventario.</p>
     `;
 
-    try {
-        const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log(`✅ Email de bienvenida enviado a: ${email}`);
-        return true;
-    } catch (error) {
-        console.error('❌ Error enviando email de bienvenida:', error.message);
-        return false;
-    }
+    return await sendBrevoEmail(subject, email, nombre, htmlContent);
 }
 
 module.exports = {
