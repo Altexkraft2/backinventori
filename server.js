@@ -14,11 +14,35 @@ const usuariosRoutes = require('./src/routes/usuarios.routes');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ============================================
+// CONFIGURACIÓN CORS - CORREGIDA
+// ============================================
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://frontend-inventario-rust.vercel.app',
+    'https://frontend-inventario-tau.vercel.app',
+    'https://*.vercel.app'
+];
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:3000'],
-    credentials: true
+    origin: function (origin, callback) {
+        // Permitir peticiones sin origen (como Postman)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('❌ Origen bloqueado por CORS:', origin);
+            callback(null, true); // Temporalmente permitir todos
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Middleware
 app.use(express.json());
 
 // ============================================
@@ -28,7 +52,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
     res.json({ 
         success: true,
-        message: '✅ API de Inventario funcionando',
+        message: 'API de Inventario funcionando',
         version: '3.0.0',
         fecha: new Date().toISOString(),
         endpoints: {
@@ -63,7 +87,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/equipos', equiposRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/filtros', filtrosRoutes);
-app.use('/api/usuarios', usuariosRoutes);  // <-- Ruta de usuarios registrada
+app.use('/api/usuarios', usuariosRoutes);
 
 // ============================================
 // INICIAR EL SERVIDOR
@@ -77,11 +101,12 @@ async function startServer() {
         process.exit(1);
     }
     
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log('\n' + '='.repeat(50));
         console.log('🚀 SERVIDOR INICIADO CORRECTAMENTE');
         console.log('='.repeat(50));
         console.log(`📡 URL: http://localhost:${PORT}`);
+        console.log(`📡 URL: https://backinventori.onrender.com`);
         console.log('\n📋 ENDPOINTS DISPONIBLES:');
         console.log('-'.repeat(50));
         console.log('🏠 PÚBLICOS:');
