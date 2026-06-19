@@ -1,4 +1,4 @@
-// src/middleware/auth.js
+// backend-inventario/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/database');
 
@@ -10,7 +10,6 @@ function generarToken(usuario) {
             id: usuario.id, 
             email: usuario.email, 
             rol: usuario.rol,
-            sede_id: usuario.sede_id,
             nombre: usuario.nombre
         }, 
         JWT_SECRET, 
@@ -40,8 +39,9 @@ async function authMiddleware(req, res, next) {
         return res.status(401).json({ success: false, error: 'Token inválido o expirado' });
     }
     
+    // CORREGIDO: Eliminar sede_id de la consulta
     const [users] = await pool.query(
-        'SELECT id, nombre, email, rol, sede_id, activo FROM usuarios WHERE id = ?',
+        'SELECT id, nombre, email, rol, activo FROM usuarios WHERE id = ?',
         [decoded.id]
     );
     

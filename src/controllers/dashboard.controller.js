@@ -1,33 +1,27 @@
-// src/controllers/dashboard.controller.js
+// backend-inventario/src/controllers/dashboard.controller.js
 const { pool } = require('../config/database');
 
 async function obtenerEstadisticas(req, res) {
     try {
         const estatusPermitidos = ['Por Desincorporar', 'Repuesto', 'Deposito', 'Por ubicar'];
         
-        let query = `
+        const query = `
             SELECT 
                 estatus,
                 COUNT(*) as total
             FROM equipos
             WHERE estatus IN (?, ?, ?, ?)
+            GROUP BY estatus
+            ORDER BY 
+                CASE estatus
+                    WHEN 'Por Desincorporar' THEN 1
+                    WHEN 'Repuesto' THEN 2
+                    WHEN 'Deposito' THEN 3
+                    WHEN 'Por ubicar' THEN 4
+                END
         `;
-        let params = [...estatusPermitidos];
         
-        if (req.usuario && req.usuario.sede_id) {
-            query += ' AND sede_id = ?';
-            params.push(req.usuario.sede_id);
-        }
-        
-        query += ` GROUP BY estatus ORDER BY 
-            CASE estatus
-                WHEN 'Por Desincorporar' THEN 1
-                WHEN 'Repuesto' THEN 2
-                WHEN 'Deposito' THEN 3
-                WHEN 'Por ubicar' THEN 4
-            END`;
-        
-        const [results] = await pool.query(query, params);
+        const [results] = await pool.query(query, estatusPermitidos);
         
         const estadisticas = {};
         estatusPermitidos.forEach(estado => {
@@ -54,24 +48,18 @@ async function obtenerEstadisticas(req, res) {
 
 async function obtenerPorMarca(req, res) {
     try {
-        let query = `
+        const query = `
             SELECT 
                 marca,
                 estatus,
                 COUNT(*) as total
             FROM equipos
             WHERE estatus IN ('Por Desincorporar', 'Repuesto', 'Deposito', 'Por ubicar')
+            GROUP BY marca, estatus
+            ORDER BY marca, total DESC
         `;
-        let params = [];
         
-        if (req.usuario && req.usuario.sede_id) {
-            query += ' AND sede_id = ?';
-            params.push(req.usuario.sede_id);
-        }
-        
-        query += ' GROUP BY marca, estatus ORDER BY marca, total DESC';
-        
-        const [results] = await pool.query(query, params);
+        const [results] = await pool.query(query);
         
         const porMarca = {};
         results.forEach(item => {
@@ -92,24 +80,18 @@ async function obtenerPorMarca(req, res) {
 
 async function obtenerPorClase(req, res) {
     try {
-        let query = `
+        const query = `
             SELECT 
                 clase,
                 estatus,
                 COUNT(*) as total
             FROM equipos
             WHERE estatus IN ('Por Desincorporar', 'Repuesto', 'Deposito', 'Por ubicar')
+            GROUP BY clase, estatus
+            ORDER BY clase, total DESC
         `;
-        let params = [];
         
-        if (req.usuario && req.usuario.sede_id) {
-            query += ' AND sede_id = ?';
-            params.push(req.usuario.sede_id);
-        }
-        
-        query += ' GROUP BY clase, estatus ORDER BY clase, total DESC';
-        
-        const [results] = await pool.query(query, params);
+        const [results] = await pool.query(query);
         
         const porClase = {};
         results.forEach(item => {
@@ -130,35 +112,27 @@ async function obtenerPorClase(req, res) {
 
 async function obtenerResumen(req, res) {
     try {
-        let sedeFilter = '';
-        let params = [];
-        
-        if (req.usuario && req.usuario.sede_id) {
-            sedeFilter = ' WHERE sede_id = ?';
-            params.push(req.usuario.sede_id);
-        }
-        
         const [porEstatus] = await pool.query(`
             SELECT estatus, COUNT(*) as total
-            FROM equipos${sedeFilter}
+            FROM equipos
             GROUP BY estatus ORDER BY total DESC
-        `, params);
+        `);
         
         const [topMarcas] = await pool.query(`
             SELECT marca, COUNT(*) as total
-            FROM equipos${sedeFilter}
+            FROM equipos
             WHERE marca IS NOT NULL AND marca != ''
             GROUP BY marca ORDER BY total DESC LIMIT 10
-        `, params);
+        `);
         
         const [topClases] = await pool.query(`
             SELECT clase, COUNT(*) as total
-            FROM equipos${sedeFilter}
+            FROM equipos
             WHERE clase IS NOT NULL AND clase != ''
             GROUP BY clase ORDER BY total DESC LIMIT 10
-        `, params);
+        `);
         
-        const [totalGeneral] = await pool.query(`SELECT COUNT(*) as total FROM equipos${sedeFilter}`, params);
+        const [totalGeneral] = await pool.query('SELECT COUNT(*) as total FROM equipos');
         
         res.json({
             success: true,

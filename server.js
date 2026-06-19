@@ -1,4 +1,4 @@
-// server.js
+// backend-inventario/server.js
 const express = require('express');
 const cors = require('cors');
 const { testConnection } = require('./src/config/database');
@@ -9,12 +9,16 @@ const authRoutes = require('./src/routes/auth.routes');
 const equiposRoutes = require('./src/routes/equipos.routes');
 const dashboardRoutes = require('./src/routes/dashboard.routes');
 const filtrosRoutes = require('./src/routes/filtros.routes');
+const usuariosRoutes = require('./src/routes/usuarios.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true
+}));
 app.use(express.json());
 
 // ============================================
@@ -25,13 +29,14 @@ app.get('/', (req, res) => {
     res.json({ 
         success: true,
         message: '✅ API de Inventario funcionando',
-        version: '2.0.0',
+        version: '3.0.0',
         fecha: new Date().toISOString(),
         endpoints: {
             auth: '/api/auth',
             equipos: '/api/equipos',
             dashboard: '/api/dashboard',
-            filtros: '/api/filtros'
+            filtros: '/api/filtros',
+            usuarios: '/api/usuarios'
         }
     });
 });
@@ -58,6 +63,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/equipos', equiposRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/filtros', filtrosRoutes);
+app.use('/api/usuarios', usuariosRoutes);  // <-- Ruta de usuarios registrada
 
 // ============================================
 // INICIAR EL SERVIDOR
@@ -83,8 +89,6 @@ async function startServer() {
         console.log(`   GET  /test-db                             - Probar conexión a BD`);
         console.log('\n🔐 AUTENTICACIÓN:');
         console.log(`   POST /api/auth/login                      - Iniciar sesión`);
-        console.log(`   POST /api/auth/registrar                  - Registrar usuario`);
-        console.log(`   GET  /api/auth/verificar-email            - Verificar email`);
         console.log(`   POST /api/auth/solicitar-recuperacion     - Recuperar contraseña`);
         console.log(`   POST /api/auth/resetear-password          - Resetear contraseña`);
         console.log(`   GET  /api/auth/perfil                     - Obtener perfil`);
@@ -102,6 +106,13 @@ async function startServer() {
         console.log(`   PUT  /api/equipos/:serial                 - Actualizar equipo`);
         console.log(`   PATCH/api/equipos/:serial/estatus         - Cambiar estatus`);
         console.log(`   DELETE /api/equipos/:serial               - Eliminar equipo`);
+        console.log('\n👥 USUARIOS:');
+        console.log(`   GET  /api/usuarios                        - Listar usuarios`);
+        console.log(`   GET  /api/usuarios/:id                    - Ver un usuario`);
+        console.log(`   POST /api/usuarios                        - Crear usuario`);
+        console.log(`   PUT  /api/usuarios/:id                    - Actualizar usuario`);
+        console.log(`   PATCH/api/usuarios/:id/reset-password     - Resetear contraseña`);
+        console.log(`   DELETE /api/usuarios/:id                  - Eliminar usuario`);
         console.log('\n🔍 FILTROS:');
         console.log(`   GET  /api/filtros/opciones                - Opciones para filtros`);
         console.log('='.repeat(50));

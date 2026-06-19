@@ -7,7 +7,6 @@ async function listarEquipos(req, res) {
             estatus, 
             marca, 
             clase, 
-            localidad, 
             busqueda, 
             limit = 50, 
             offset = 0 
@@ -15,12 +14,6 @@ async function listarEquipos(req, res) {
         
         let query = 'SELECT * FROM equipos WHERE 1=1';
         let params = [];
-        
-        // Filtrar por sede del usuario
-        if (req.usuario && req.usuario.sede_id) {
-            query += ' AND sede_id = ?';
-            params.push(req.usuario.sede_id);
-        }
         
         if (estatus) {
             query += ' AND estatus = ?';
@@ -40,11 +33,6 @@ async function listarEquipos(req, res) {
             params.push(clase);
         }
         
-        if (localidad) {
-            query += ' AND localidad = ?';
-            params.push(localidad);
-        }
-        
         if (busqueda) {
             query += ' AND (serial LIKE ? OR marca LIKE ? OR modelo LIKE ? OR descripcion LIKE ?)';
             const searchTerm = `%${busqueda}%`;
@@ -56,14 +44,8 @@ async function listarEquipos(req, res) {
         
         const [rows] = await pool.query(query, params);
         
-        // Count query
         let countQuery = 'SELECT COUNT(*) as total FROM equipos WHERE 1=1';
         let countParams = [];
-        
-        if (req.usuario && req.usuario.sede_id) {
-            countQuery += ' AND sede_id = ?';
-            countParams.push(req.usuario.sede_id);
-        }
         
         if (estatus) {
             countQuery += ' AND estatus = ?';
@@ -81,11 +63,6 @@ async function listarEquipos(req, res) {
         if (clase) {
             countQuery += ' AND clase = ?';
             countParams.push(clase);
-        }
-        
-        if (localidad) {
-            countQuery += ' AND localidad = ?';
-            countParams.push(localidad);
         }
         
         if (busqueda) {
@@ -141,7 +118,6 @@ async function crearEquipo(req, res) {
             modelo,
             descripcion,
             pabi,
-            localidad,
             observacion,
             ram,
             disco_duro,
@@ -164,9 +140,9 @@ async function crearEquipo(req, res) {
         
         const query = `
             INSERT INTO equipos 
-            (serial, clase, codigo_inventario, estatus, marca, modelo, descripcion, pabi, localidad, observacion, sede_id,
+            (serial, clase, codigo_inventario, estatus, marca, modelo, descripcion, pabi, observacion,
              ram, disco_duro, procesador, sistema_operativo)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const [result] = await pool.query(query, [
@@ -178,9 +154,7 @@ async function crearEquipo(req, res) {
             modelo, 
             descripcion, 
             pabi, 
-            localidad, 
             observacion,
-            req.usuario?.sede_id || null,
             ram || null, 
             disco_duro || null, 
             procesador || null, 
@@ -210,7 +184,6 @@ async function actualizarEquipo(req, res) {
             modelo,
             descripcion,
             pabi,
-            localidad,
             observacion,
             ram,
             disco_duro,
@@ -232,7 +205,6 @@ async function actualizarEquipo(req, res) {
                 modelo = ?,
                 descripcion = ?, 
                 pabi = ?, 
-                localidad = ?, 
                 observacion = ?,
                 ram = ?, 
                 disco_duro = ?, 
@@ -249,7 +221,6 @@ async function actualizarEquipo(req, res) {
             modelo,
             descripcion, 
             pabi, 
-            localidad, 
             observacion,
             ram || null, 
             disco_duro || null, 
